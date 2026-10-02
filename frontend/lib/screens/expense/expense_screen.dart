@@ -18,23 +18,21 @@ class ExpenseScreen extends ConsumerStatefulWidget {
 class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   final _searchController = TextEditingController();
   String _selectedCategory = "All";
-  String _selectedMonthKey = "All"; // "All" or "yyyy-MM" e.g. "2026-07"
+  String _selectedMonthKey = "All"; // "All" or "yyyy-MM"
 
-  final List<Map<String, String>> _monthOptions = [
-    {"key": "All", "label": "All Months"},
-    {"key": "2026-01", "label": "Jan 2026"},
-    {"key": "2026-02", "label": "Feb 2026"},
-    {"key": "2026-03", "label": "Mar 2026"},
-    {"key": "2026-04", "label": "Apr 2026"},
-    {"key": "2026-05", "label": "May 2026"},
-    {"key": "2026-06", "label": "Jun 2026"},
-    {"key": "2026-07", "label": "Jul 2026"},
-    {"key": "2026-08", "label": "Aug 2026"},
-    {"key": "2026-09", "label": "Sep 2026"},
-    {"key": "2026-10", "label": "Oct 2026"},
-    {"key": "2026-11", "label": "Nov 2026"},
-    {"key": "2026-12", "label": "Dec 2026"},
-  ];
+  List<Map<String, String>> get _monthOptions {
+    final List<Map<String, String>> options = [
+      {"key": "All", "label": "All Months"}
+    ];
+    final now = DateTime.now();
+    for (int i = 0; i < 12; i++) {
+      final date = DateTime(now.year, now.month - i, 1);
+      final key = DateFormat('yyyy-MM').format(date);
+      final label = DateFormat('MMM yyyy').format(date);
+      options.add({"key": key, "label": label});
+    }
+    return options;
+  }
 
   void _showAddTransactionModal(BuildContext context, {TransactionModel? initialTx}) {
     showModalBottomSheet(
@@ -115,64 +113,131 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Month Selector (Compact Radio / Choice Chip experience)
+            // 1. Period Mode Toggle (Monthly vs Yearly)
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.calendar_month_rounded, size: 18, color: AppColors.primary),
-                const SizedBox(width: 8),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'monthly', label: Text('Monthly'), icon: Icon(Icons.calendar_view_month_rounded, size: 16)),
+                    ButtonSegment(value: 'yearly', label: Text('Yearly'), icon: Icon(Icons.calendar_today_rounded, size: 16)),
+                  ],
+                  selected: {financeState.periodType},
+                  onSelectionChanged: (newSelection) {
+                    final selectedMode = newSelection.first;
+                    ref.read(financeProvider.notifier).setPeriodType(selectedMode);
+                  },
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
                 Text(
-                  "Month Selection",
-                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black87),
+                  financeState.summary?.period ?? "Analytics",
+                  style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 38,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _monthOptions.length,
-                itemBuilder: (context, index) {
-                  final option = _monthOptions[index];
-                  final isSelected = _selectedMonthKey == option["key"];
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: ChoiceChip(
-                      selected: isSelected,
-                      label: Text(option["label"]!),
-                      labelStyle: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                      ),
-                      selectedColor: AppColors.primary,
-                      backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      onSelected: (val) {
-                        if (val) {
-                          setState(() {
-                            _selectedMonthKey = option["key"]!;
-                          });
-                          if (option["key"] != "All" && option["key"]!.contains("-")) {
-                            final parts = option["key"]!.split("-");
-                            final y = int.tryParse(parts[0]);
-                            final m = int.tryParse(parts[1]);
-                            if (y != null && m != null) {
-                              ref.read(financeProvider.notifier).changeMonth(y, m);
-                            }
-                          } else {
-                            ref.read(financeProvider.notifier).fetchData();
-                          }
-                        }
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
 
-            // Monthly Analytics Dashboard Card
+            // Dynamic Year Selector Chips
+            if ((financeState.summary?.availableYears ?? []).isNotEmpty) ...[
+              Row(
+                children: [
+                  const Icon(Icons.history_rounded, size: 16, color: AppColors.secondary),
+                  const SizedBox(width: 6),
+                  Text("Year:", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SizedBox(
+                      height: 32,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: financeState.summary!.availableYears.length,
+                        itemBuilder: (context, index) {
+                          final yr = financeState.summary!.availableYears[index];
+                          final isSelected = financeState.selectedYear == yr;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6.0),
+                            child: ChoiceChip(
+                              selected: isSelected,
+                              label: Text('$yr'),
+                              labelStyle: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                              ),
+                              selectedColor: AppColors.secondary,
+                              backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                              visualDensity: VisualDensity.compact,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              onSelected: (val) {
+                                if (val) {
+                                  ref.read(financeProvider.notifier).selectYear(yr);
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            // Month Selector (for Monthly mode)
+            if (financeState.periodType == 'monthly') ...[
+              SizedBox(
+                height: 34,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _monthOptions.length,
+                  itemBuilder: (context, index) {
+                    final option = _monthOptions[index];
+                    final isSelected = _selectedMonthKey == option["key"];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6.0),
+                      child: ChoiceChip(
+                        selected: isSelected,
+                        label: Text(option["label"]!),
+                        labelStyle: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                        ),
+                        selectedColor: AppColors.primary,
+                        backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        onSelected: (val) {
+                          if (val) {
+                            setState(() {
+                              _selectedMonthKey = option["key"]!;
+                            });
+                            if (option["key"] != "All" && option["key"]!.contains("-")) {
+                              final parts = option["key"]!.split("-");
+                              final y = int.tryParse(parts[0]);
+                              final m = int.tryParse(parts[1]);
+                              if (y != null && m != null) {
+                                ref.read(financeProvider.notifier).changeMonth(y, m);
+                              }
+                            } else {
+                              // Genuine "All Months" aggregation from backend
+                              ref.read(financeProvider.notifier).fetchData(periodType: 'monthly', year: financeState.selectedYear, month: null);
+                            }
+                          }
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Analytics Summary Dashboard Card (Monthly or Yearly)
             CustomCard(
               padding: const EdgeInsets.all(16),
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -183,7 +248,9 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        "$selectedMonthLabel Analytics",
+                        financeState.periodType == 'yearly'
+                            ? "Yearly Financial Overview (${financeState.selectedYear})"
+                            : "$selectedMonthLabel Analytics",
                         style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
                       ),
                       Container(
@@ -193,7 +260,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          "${monthFilteredList.length} Entries",
+                          "${displayList.length} Entries",
                           style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
                         ),
                       ),
@@ -201,66 +268,81 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  if (monthFilteredList.isEmpty && _selectedMonthKey != "All")
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            const Icon(Icons.event_busy_rounded, size: 40, color: Colors.grey),
-                            const SizedBox(height: 8),
-                            Text(
-                              "No financial activity recorded for this month.",
-                              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else ...[
-                    // KPI Row
-                    Wrap(
-                      alignment: WrapAlignment.spaceAround,
-                      spacing: 12,
-                      runSpacing: 10,
-                      children: [
-                        _buildKpiTile("Income", monthIncome, AppColors.success),
-                        _buildKpiTile("Expenses", monthExpense, AppColors.danger),
-                        _buildKpiTile("Investments", monthInvestment, AppColors.secondary),
-                        _buildKpiTile("Net Savings", monthSavings, AppColors.warning),
-                      ],
-                    ),
-
-                    if (categoryBreakdown.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      const Divider(height: 1),
-                      const SizedBox(height: 10),
-                      Text("Category Breakdown", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: categoryBreakdown.entries.map((e) {
-                          final catColor = AppCategories.getColor(e.key);
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: catColor.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(e.key, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: catColor)),
-                                const SizedBox(width: 4),
-                                Text("₹${NumberFormat('#,##,##0').format(e.value)}", style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: catColor)),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
+                  // KPI Row
+                  Wrap(
+                    alignment: WrapAlignment.spaceAround,
+                    spacing: 12,
+                    runSpacing: 10,
+                    children: [
+                      _buildKpiTile("Income", monthIncome, AppColors.success),
+                      _buildKpiTile("Expenses", monthExpense, AppColors.danger),
+                      _buildKpiTile("Investments", monthInvestment, AppColors.secondary),
+                      _buildKpiTile("Net Savings", monthSavings, AppColors.warning),
                     ],
+                  ),
+
+                  if (categoryBreakdown.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    const Divider(height: 1),
+                    const SizedBox(height: 10),
+                    Text("Category Breakdown", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: categoryBreakdown.entries.map((e) {
+                        final catColor = AppCategories.getColor(e.key);
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: catColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(e.key, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: catColor)),
+                              const SizedBox(width: 4),
+                              Text("₹${NumberFormat('#,##,##0').format(e.value)}", style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: catColor)),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+
+                  if (financeState.periodType == 'yearly' && (financeState.summary?.yearlyTrend ?? []).isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    const Divider(height: 1),
+                    const SizedBox(height: 10),
+                    Text("Multi-Year Trend Analysis", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    const SizedBox(height: 8),
+                    Column(
+                      children: financeState.summary!.yearlyTrend.map((yItem) {
+                        final yrStr = yItem['year']?.toString() ?? '';
+                        final yInc = (yItem['income'] as num?)?.toDouble() ?? 0.0;
+                        final yExp = (yItem['expense'] as num?)?.toDouble() ?? 0.0;
+                        final yInv = (yItem['investment'] as num?)?.toDouble() ?? 0.0;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text("Year $yrStr", style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold)),
+                              Row(
+                                children: [
+                                  Text("Inc: ₹${NumberFormat('#,##,##0').format(yInc)}", style: GoogleFonts.inter(fontSize: 11, color: AppColors.success)),
+                                  const SizedBox(width: 8),
+                                  Text("Exp: ₹${NumberFormat('#,##,##0').format(yExp)}", style: GoogleFonts.inter(fontSize: 11, color: AppColors.danger)),
+                                  const SizedBox(width: 8),
+                                  Text("Inv: ₹${NumberFormat('#,##,##0').format(yInv)}", style: GoogleFonts.inter(fontSize: 11, color: AppColors.secondary)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ],
                 ],
               ),

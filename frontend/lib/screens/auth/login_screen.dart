@@ -16,8 +16,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailController = TextEditingController(text: "demo@finsight.ai");
-  final _passwordController = TextEditingController(text: "demo123");
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _obscureText = true;
   String _selectedRole = "user"; // 'user' or 'enterprise'
   String? _errorMessage;
@@ -117,80 +117,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // Demo Account Banner Card
-                  CustomCard(
-                    color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(Icons.bolt_rounded, color: AppColors.primary, size: 20),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text("Demo Accounts", style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold)),
-                                  Text("Select role & auto-fill credentials", style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  setState(() {
-                                    _emailController.text = "demo@finsight.ai";
-                                    _passwordController.text = "demo123";
-                                    _selectedRole = "user";
-                                    _errorMessage = null;
-                                  });
-                                  _handleLogin();
-                                },
-                                icon: const Icon(Icons.person_rounded, size: 14, color: Colors.white),
-                                label: Text("User Demo", style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  setState(() {
-                                    _emailController.text = "corp@finsight.ai";
-                                    _passwordController.text = "corp123";
-                                    _selectedRole = "enterprise";
-                                    _errorMessage = null;
-                                  });
-                                  // Register enterprise demo user if needed and login
-                                  ref.read(authProvider.notifier).register("corp@finsight.ai", "Acme Enterprise Admin", "corp123", role: "enterprise").then((_) {
-                                    _handleLogin();
-                                  });
-                                },
-                                icon: const Icon(Icons.business_rounded, size: 14, color: Colors.white),
-                                label: Text("Enterprise Demo", style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 8),
 
                   CustomCard(
                     child: Column(
@@ -329,17 +256,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   _selectedRole == "enterprise" ? "SIGN IN AS ENTERPRISE" : "SIGN IN AS USER",
                                   style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                                 ),
-                        ),
-                        const SizedBox(height: 16),
-                        OutlinedButton.icon(
-                          onPressed: () => context.push('/biometric'),
-                          icon: const Icon(Icons.fingerprint_rounded, color: AppColors.secondary),
-                          label: Text("Biometric Login", style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.secondary)),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: const BorderSide(color: AppColors.secondary),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
                         ),
                       ],
                     ),

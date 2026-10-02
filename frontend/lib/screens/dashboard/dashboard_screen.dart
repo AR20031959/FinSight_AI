@@ -48,14 +48,14 @@ class DashboardScreen extends ConsumerWidget {
               children: [
                 const Icon(Icons.cloud_off_rounded, size: 56, color: Colors.grey),
                 const SizedBox(height: 16),
-                Text("Unable to load summary", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text("Unable to load your financial dashboard.", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text("Tap refresh to sync financial data.", style: GoogleFonts.inter(fontSize: 13, color: Colors.grey)),
+                Text("Tap retry to sync financial data.", style: GoogleFonts.inter(fontSize: 13, color: Colors.grey)),
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
                   onPressed: () => ref.read(financeProvider.notifier).fetchData(),
                   icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-                  label: const Text("Refresh", style: TextStyle(color: Colors.white)),
+                  label: const Text("Retry", style: TextStyle(color: Colors.white)),
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                 ),
               ],
@@ -217,12 +217,12 @@ class DashboardScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  if (financeState.transactions.isEmpty)
+                  if (financeState.transactions.isEmpty && (summary.transactionCount == 0))
                     CustomCard(
                       padding: const EdgeInsets.all(20),
                       child: Center(
                         child: Text(
-                          "No financial activities recorded yet.",
+                          "No financial data available yet.",
                           style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
                         ),
                       ),
@@ -428,21 +428,34 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
+              if (summary.monthOverMonthChanges != null && (summary.monthOverMonthChanges['income_change_pct'] != 0.0 || summary.monthOverMonthChanges['expense_change_pct'] != 0.0)) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: ((summary.monthOverMonthChanges['income_change_pct'] ?? 0.0) >= 0 ? AppColors.success : AppColors.danger).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        (summary.monthOverMonthChanges['income_change_pct'] ?? 0.0) >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                        color: (summary.monthOverMonthChanges['income_change_pct'] ?? 0.0) >= 0 ? AppColors.success : AppColors.danger,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        "${(summary.monthOverMonthChanges['income_change_pct'] ?? 0.0) >= 0 ? '+' : ''}${summary.monthOverMonthChanges['income_change_pct'] ?? 0.0}%",
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: (summary.monthOverMonthChanges['income_change_pct'] ?? 0.0) >= 0 ? AppColors.success : AppColors.danger,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.trending_up_rounded, color: AppColors.success, size: 14),
-                    const SizedBox(width: 4),
-                    Text("+12.4%", style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success)),
-                  ],
-                ),
-              ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -481,6 +494,23 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildHealthScoreCard(BuildContext context, dynamic summary) {
+    String standingText = "No Financial Data";
+    Color standingColor = Colors.grey;
+
+    if (summary.healthScore >= 80) {
+      standingText = "Excellent Standing";
+      standingColor = AppColors.success;
+    } else if (summary.healthScore >= 60) {
+      standingText = "Good Standing";
+      standingColor = AppColors.primary;
+    } else if (summary.healthScore >= 40) {
+      standingText = "Fair Standing";
+      standingColor = AppColors.warning;
+    } else if (summary.healthScore > 0) {
+      standingText = "Action Recommended";
+      standingColor = AppColors.danger;
+    }
+
     return CustomCard(
       onTap: () => context.push('/health-score'),
       child: Column(
@@ -492,8 +522,8 @@ class DashboardScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text("Excellent Standing", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.success)),
-              const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.success),
+              Text(standingText, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: standingColor)),
+              Icon(Icons.chevron_right_rounded, size: 16, color: standingColor),
             ],
           ),
         ],

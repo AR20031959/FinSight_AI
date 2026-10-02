@@ -86,7 +86,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 textColor: Colors.amber,
                 onPressed: () => OpenFile.open(file.path),
               ),
-              duration: const Duration(seconds: 5),
+              duration: const Duration(seconds: 7),
+              behavior: SnackBarBehavior.floating,
             ),
           );
           OpenFile.open(file.path);
@@ -118,7 +119,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 textColor: Colors.amber,
                 onPressed: () => OpenFile.open(file.path),
               ),
-              duration: const Duration(seconds: 5),
+              duration: const Duration(seconds: 7),
+              behavior: SnackBarBehavior.floating,
             ),
           );
           OpenFile.open(file.path);
@@ -131,7 +133,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           SnackBar(
             content: Text("Report Error: $e", maxLines: 2, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.redAccent,
-            duration: const Duration(seconds: 4),
+            duration: const Duration(seconds: 7),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }

@@ -288,65 +288,133 @@ def generate_excel_report(
 def generate_image_report(user_name: str, transactions: List[Dict[str, Any]], summary: Dict[str, Any], start_date: str = None, end_date: str = None) -> bytes:
     """
     Generates a high-resolution visual financial infographic image report (PNG format)
-    using PIL and Matplotlib visual rendering.
+    using PIL and Matplotlib visual rendering with dynamic height and zero text/graphic overlapping.
     """
-    # pyrefly: ignore [missing-import]
     from PIL import Image, ImageDraw
     import io
 
-    # Create high-res canvas (1200 x 1600)
-    img = Image.new("RGB", (1200, 1600), color="#0F172A")
+    txs_to_show = transactions[:15]
+    
+    # Calculate required dynamic canvas height
+    header_h = 130
+    cards_h = 240
+    health_h = 110
+    chart_h = 420
+    table_header_h = 50
+    table_rows_h = len(txs_to_show) * 50
+    footer_h = 60
+    total_canvas_h = max(1400, 40 + header_h + 20 + cards_h + 20 + health_h + 20 + chart_h + 20 + table_header_h + table_rows_h + footer_h + 40)
+
+    img = Image.new("RGB", (1200, total_canvas_h), color="#0F172A")
     draw = ImageDraw.Draw(img)
 
-    # Header Card
-    draw.rectangle([40, 40, 1160, 160], fill="#1E293B", outline="#3B82F6", width=2)
-    draw.text((60, 60), "FINSIGHT AI - VISUAL FINANCIAL INFOGRAPHIC REPORT", fill="#38BDF8")
-    draw.text((60, 95), f"Account Holder: {user_name}  |  Period: {start_date or 'Start'} to {end_date or 'End'}", fill="#94A3B8")
-    draw.text((60, 125), f"Generated: {datetime.datetime.now().strftime('%d %B %Y, %I:%M %p')}", fill="#64748B")
+    y_cursor = 40
 
-    # Metric Cards Grid
+    # 1. Header Card
+    draw.rectangle([40, y_cursor, 1160, y_cursor + header_h], fill="#1E293B", outline="#3B82F6", width=2)
+    draw.text((60, y_cursor + 20), "FINSIGHT AI - EXECUTIVE FINANCIAL INFOGRAPHIC REPORT", fill="#38BDF8")
+    
+    period_str = f"{start_date or 'Beginning'} to {end_date or 'Present'}" if (start_date or end_date) else summary.get("period", "All Time")
+    draw.text((60, y_cursor + 55), f"Account Holder: {user_name}  |  Report Period: {period_str}", fill="#94A3B8")
+    draw.text((60, y_cursor + 85), f"Generated: {datetime.datetime.now().strftime('%d %B %Y, %I:%M %p')}", fill="#64748B")
+
+    y_cursor += header_h + 20
+
+    # 2. Metric Cards Grid
     income = float(summary.get("monthly_income") or 0.0)
     expense = float(summary.get("monthly_expense") or 0.0)
     invest = float(summary.get("total_investments") or 0.0)
     savings = float(summary.get("savings") or 0.0)
-    health = summary.get("health_score", 85.0)
+    health = float(summary.get("health_score") or 0.0)
 
     cards = [
-        ("PERIOD INCOME", f"INR {income:,.2f}", "#10B981", (40, 180, 580, 280)),
-        ("PERIOD EXPENSES", f"INR {expense:,.2f}", "#EF4444", (620, 180, 1160, 280)),
-        ("INVESTMENTS", f"INR {invest:,.2f}", "#06B6D4", (40, 300, 580, 400)),
-        ("SURPLUS SAVINGS", f"INR {savings:,.2f}", "#F59E0B", (620, 300, 1160, 400)),
+        ("PERIOD INCOME", f"INR {income:,.2f}", "#10B981", (40, y_cursor, 580, y_cursor + 105)),
+        ("PERIOD EXPENSES", f"INR {expense:,.2f}", "#EF4444", (620, y_cursor, 1160, y_cursor + 105)),
+        ("INVESTMENTS", f"INR {invest:,.2f}", "#06B6D4", (40, y_cursor + 115, 580, y_cursor + 220)),
+        ("NET SURPLUS SAVINGS", f"INR {savings:,.2f}", "#F59E0B", (620, y_cursor + 115, 1160, y_cursor + 220)),
     ]
 
     for label, val, color, bounds in cards:
         draw.rectangle(bounds, fill="#1E293B", outline=color, width=2)
         draw.text((bounds[0] + 20, bounds[1] + 20), label, fill="#94A3B8")
-        draw.text((bounds[0] + 20, bounds[1] + 50), val, fill=color)
+        draw.text((bounds[0] + 20, bounds[1] + 55), val, fill=color)
 
-    # Health Score Box
-    draw.rectangle([40, 420, 1160, 520], fill="#1E293B", outline="#8B5CF6", width=2)
-    draw.text((60, 440), f"FINANCIAL HEALTH SCORE: {health} / 100", fill="#A855F7")
-    draw.text((60, 475), f"AI Insight: Account activity cleanly analyzed. {len(transactions)} activities in period.", fill="#E2E8F0")
+    y_cursor += cards_h + 20
 
-    # Embedded Chart via Matplotlib
+    # 3. Health Score Box
+    draw.rectangle([40, y_cursor, 1160, y_cursor + health_h], fill="#1E293B", outline="#8B5CF6", width=2)
+    draw.text((60, y_cursor + 20), f"FINANCIAL HEALTH SCORE: {health:.1f} / 100", fill="#A855F7")
+    
+    ai_insights = summary.get("ai_insights", [])
+    insight_text = ai_insights[0] if ai_insights else f"Account activity cleanly analyzed. {len(transactions)} entries recorded in period."
+    if len(insight_text) > 100:
+        insight_text = insight_text[:97] + "..."
+    draw.text((60, y_cursor + 60), f"AI Executive Insight: {insight_text}", fill="#E2E8F0")
+
+    y_cursor += health_h + 20
+
+    # 4. Embedded Dynamic Visual Dual Charts via Matplotlib
+    chart_y_start = y_cursor
     try:
-        # pyrefly: ignore [missing-import]
         import matplotlib
         matplotlib.use("Agg")
-        # pyrefly: ignore [missing-import]
         import matplotlib.pyplot as plt
 
-        fig, ax = plt.subplots(figsize=(10, 4), facecolor="#1E293B")
-        ax.set_facecolor("#1E293B")
-        
-        cats = list(summary.get("category_breakdown", {}).keys()) or ["Food", "Rent", "EMI", "Shopping"]
-        vals = list(summary.get("category_breakdown", {}).values()) or [8500, 32000, 14200, 6890]
-        
-        ax.bar(cats, vals, color="#38BDF8")
-        ax.set_title("Spending Category Distribution", color="white", fontsize=14)
-        ax.tick_params(colors="white")
-        for spine in ax.spines.values():
-            spine.set_color("#475569")
+        cat_breakdown = summary.get("category_breakdown", {})
+        cats = list(cat_breakdown.keys())
+        vals = [float(cat_breakdown[k]) for k in cats]
+
+        trend_data = summary.get("monthly_trend", [])
+        if not trend_data and summary.get("yearly_trend"):
+            trend_data = summary.get("yearly_trend", [])
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.2, 3.8), facecolor="#1E293B")
+        fig.subplots_adjust(wspace=0.3)
+        ax1.set_facecolor("#1E293B")
+        ax2.set_facecolor("#1E293B")
+
+        # Subplot 1: Category Breakdown Bar Chart
+        if cats and any(v > 0 for v in vals):
+            bars = ax1.bar(cats[:6], vals[:6], color="#38BDF8", edgecolor="#0284C7", width=0.45)
+            ax1.set_title("Spending Breakdown", color="white", fontsize=11, fontweight="bold", pad=10)
+            ax1.tick_params(colors="white", labelsize=8.5)
+            ax1.tick_params(axis='x', rotation=25)
+            for spine in ax1.spines.values():
+                spine.set_color("#475569")
+            ax1.grid(axis='y', linestyle='--', alpha=0.3, color='#64748B')
+        else:
+            ax1.text(0.5, 0.5, "No Expense Categories Recorded", color="#94A3B8", fontsize=10, ha="center", va="center")
+            ax1.set_title("Spending Breakdown", color="white", fontsize=11, pad=10)
+            ax1.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+            for spine in ax1.spines.values():
+                spine.set_color("#475569")
+
+        # Subplot 2: Financial Trend Timeline
+        if trend_data:
+            x_labels = [str(item.get("month") or item.get("year") or "") for item in trend_data]
+            inc_vals = [float(item.get("income") or 0.0) for item in trend_data]
+            exp_vals = [float(item.get("expense") or 0.0) for item in trend_data]
+
+            import numpy as np
+            x_indices = np.arange(len(x_labels))
+            bar_w = 0.35
+
+            ax2.bar(x_indices - bar_w/2, inc_vals, width=bar_w, label="Income", color="#10B981")
+            ax2.bar(x_indices + bar_w/2, exp_vals, width=bar_w, label="Expense", color="#EF4444")
+            ax2.set_xticks(x_indices)
+            ax2.set_xticklabels(x_labels, rotation=25, color="white", fontsize=8.5)
+            ax2.set_title("Period Trend Timeline", color="white", fontsize=11, fontweight="bold", pad=10)
+            ax2.tick_params(colors="white", labelsize=8.5)
+            ax2.legend(facecolor="#1E293B", edgecolor="#475569", labelcolor="white", fontsize=8)
+            for spine in ax2.spines.values():
+                spine.set_color("#475569")
+            ax2.grid(axis='y', linestyle='--', alpha=0.3, color='#64748B')
+        else:
+            ax2.text(0.5, 0.5, "No Timeline Activity Data", color="#94A3B8", fontsize=10, ha="center", va="center")
+            ax2.set_title("Period Trend Timeline", color="white", fontsize=11, pad=10)
+            ax2.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+            for spine in ax2.spines.values():
+                spine.set_color("#475569")
 
         chart_buf = io.BytesIO()
         plt.savefig(chart_buf, format="png", bbox_inches="tight", dpi=130)
@@ -354,36 +422,51 @@ def generate_image_report(user_name: str, transactions: List[Dict[str, Any]], su
         chart_buf.seek(0)
 
         chart_img = Image.open(chart_buf)
-        img.paste(chart_img, (40, 530))
+        img.paste(chart_img, (40, chart_y_start))
     except Exception:
-        draw.rectangle([40, 530, 1160, 830], fill="#1E293B", outline="#475569", width=1)
-        draw.text((60, 670), "Visual Category Analytics Chart", fill="#94A3B8")
+        draw.rectangle([40, chart_y_start, 1160, chart_y_start + chart_h - 20], fill="#1E293B", outline="#475569", width=1)
+        draw.text((60, chart_y_start + 180), "Visual Financial Analytics Charts", fill="#94A3B8")
 
-    # Transaction Table Header
-    draw.rectangle([40, 860, 1160, 910], fill="#2563EB")
-    draw.text((60, 875), "DATE", fill="white")
-    draw.text((220, 875), "DESCRIPTION / TITLE", fill="white")
-    draw.text((650, 875), "CATEGORY", fill="white")
-    draw.text((900, 875), "AMOUNT (INR)", fill="white")
 
-    # Table Rows
-    y = 920
-    for idx, t in enumerate(transactions[:11]):
-        row_bg = "#1E293B" if idx % 2 == 0 else "#0F172A"
-        draw.rectangle([40, y, 1160, y + 45], fill=row_bg)
-        
-        t_type = (t.get("type") or "").lower()
-        amt = float(t.get("amount") or 0.0)
-        amt_color = "#10B981" if t_type == "income" else ("#06B6D4" if t_type == "investment" else "#EF4444")
-        
-        draw.text((60, y + 12), str(t.get("date") or "")[:10], fill="#94A3B8")
-        draw.text((220, y + 12), str(t.get("title") or "")[:32], fill="white")
-        draw.text((650, y + 12), str(t.get("category") or "")[:20], fill="#94A3B8")
-        draw.text((900, y + 12), f"INR {amt:,.2f}", fill=amt_color)
-        y += 50
+    y_cursor += chart_h + 20
+
+    # 5. Transaction Table Header
+    draw.rectangle([40, y_cursor, 1160, y_cursor + table_header_h], fill="#2563EB")
+    draw.text((60, y_cursor + 16), "DATE", fill="white")
+    draw.text((220, y_cursor + 16), "DESCRIPTION / TITLE", fill="white")
+    draw.text((650, y_cursor + 16), "CATEGORY", fill="white")
+    draw.text((920, y_cursor + 16), "AMOUNT (INR)", fill="white")
+
+    y_cursor += table_header_h
+
+    # 6. Table Rows
+    if not txs_to_show:
+        draw.rectangle([40, y_cursor, 1160, y_cursor + 50], fill="#1E293B")
+        draw.text((60, y_cursor + 16), "No transactions recorded for this period.", fill="#94A3B8")
+        y_cursor += 50
+    else:
+        for idx, t in enumerate(txs_to_show):
+            row_bg = "#1E293B" if idx % 2 == 0 else "#0F172A"
+            draw.rectangle([40, y_cursor, 1160, y_cursor + 45], fill=row_bg)
+            
+            t_type = (t.get("type") or "").lower()
+            amt = float(t.get("amount") or 0.0)
+            amt_color = "#10B981" if t_type == "income" else ("#06B6D4" if t_type in ("investment", "savings") else "#EF4444")
+            
+            draw.text((60, y_cursor + 12), str(t.get("date") or "")[:10], fill="#94A3B8")
+            draw.text((220, y_cursor + 12), str(t.get("title") or "")[:35], fill="white")
+            draw.text((650, y_cursor + 12), str(t.get("category") or "")[:22], fill="#94A3B8")
+            draw.text((920, y_cursor + 12), f"INR {amt:,.2f}", fill=amt_color)
+            y_cursor += 48
+
+    y_cursor += 20
+    # 7. Report Footer
+    draw.line([40, y_cursor, 1160, y_cursor], fill="#334155", width=1)
+    draw.text((60, y_cursor + 15), "FinSight AI Decision Intelligence Platform  |  Automated Confidential Report", fill="#64748B")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
     return buf.getvalue()
+
 

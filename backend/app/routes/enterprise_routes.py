@@ -67,6 +67,13 @@ def get_enterprise_dashboard(
         AuditLog.action == "AI_QUERY"
     ).count()
 
+    if txs and tot_income > 0:
+        savings = max(0.0, tot_income - tot_expense - tot_investment)
+        savings_ratio = ((savings + tot_investment) / tot_income * 100.0)
+        health_score = round(min(100.0, max(0.0, 45.0 + (savings_ratio * 0.6))), 1)
+    else:
+        health_score = 0.0
+
     return EnterpriseDashboardResponse(
         enterprise_id=enterprise.id,
         enterprise_name=enterprise.name,
@@ -78,7 +85,7 @@ def get_enterprise_dashboard(
             "total_investments": round(tot_investment, 2),
             "net_surplus": round(tot_income - tot_expense - tot_investment, 2),
             "category_spending_distribution": cat_breakdown,
-            "average_member_health_score": 84.5 if member_user_ids else 50.0
+            "average_member_health_score": health_score
         },
         usage_statistics={
             "total_transactions_tracked": len(txs),

@@ -165,32 +165,153 @@ class _AIAssistantScreenState extends ConsumerState<AIAssistantScreen> {
   }
 
   Widget _buildChatBubble(String text, bool isUser, bool isDark) {
+    final maxBubbleWidth = (MediaQuery.of(context).size.width * 0.82).clamp(280.0, 680.0);
+
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        constraints: const BoxConstraints(maxWidth: 320),
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        constraints: BoxConstraints(maxWidth: maxBubbleWidth),
         decoration: BoxDecoration(
           color: isUser
               ? AppColors.primary
               : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+          border: isUser
+              ? null
+              : Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
             bottomLeft: Radius.circular(isUser ? 16 : 4),
             bottomRight: Radius.circular(isUser ? 4 : 16),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: Text(
-          text,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            height: 1.4,
-            color: isUser ? Colors.white : (isDark ? Colors.white : const Color(0xFF0F172A)),
-          ),
-        ),
+        child: isUser
+            ? Text(
+                text,
+                style: GoogleFonts.inter(
+                  fontSize: 14.5,
+                  height: 1.45,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              )
+            : FormattedMarkdownText(text: text, isDark: isDark),
       ),
     );
   }
 }
+
+class FormattedMarkdownText extends StatelessWidget {
+  final String text;
+  final bool isDark;
+
+  const FormattedMarkdownText({super.key, required this.text, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final mutedColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final accentColor = isDark ? const Color(0xFF38BDF8) : AppColors.primary;
+
+    final lines = text.split('\n');
+    List<Widget> widgets = [];
+
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].trimRight();
+
+      if (line.trim().isEmpty) {
+        widgets.add(const SizedBox(height: 6));
+        continue;
+      }
+
+      if (line.startsWith('### ') || line.startsWith('## ') || line.startsWith('# ')) {
+        final headingText = line.replaceAll(RegExp(r'^#+\s*'), '');
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+            child: Text(
+              headingText,
+              style: GoogleFonts.outfit(
+                fontSize: 16.5,
+                fontWeight: FontWeight.bold,
+                height: 1.3,
+                color: accentColor,
+              ),
+            ),
+          ),
+        );
+      } else if (line.trim().startsWith('• ') || line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+        final bulletText = line.trim().substring(2);
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 4.0, top: 2.0, bottom: 2.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("• ", style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: accentColor)),
+                Expanded(
+                  child: RichText(
+                    text: _parseFormattedSpan(bulletText, textColor, accentColor),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2.0),
+            child: RichText(
+              text: _parseFormattedSpan(line, textColor, accentColor),
+            ),
+          ),
+        );
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
+  }
+
+  TextSpan _parseFormattedSpan(String input, Color textColor, Color accentColor) {
+    List<InlineSpan> spans = [];
+    final regex = RegExp(r'\*\*(.*?)\*\*');
+    int lastMatchEnd = 0;
+
+    for (final match in regex.allMatches(input)) {
+      if (match.start > lastMatchEnd) {
+        spans.add(TextSpan(
+          text: input.substring(lastMatchEnd, match.start),
+          style: GoogleFonts.inter(fontSize: 14.5, height: 1.5, color: textColor),
+        ));
+      }
+      spans.add(TextSpan(
+        text: match.group(1),
+        style: GoogleFonts.inter(fontSize: 14.5, height: 1.5, fontWeight: FontWeight.bold, color: textColor),
+      ));
+      lastMatchEnd = match.end;
+    }
+
+    if (lastMatchEnd < input.length) {
+      spans.add(TextSpan(
+        text: input.substring(lastMatchEnd),
+        style: GoogleFonts.inter(fontSize: 14.5, height: 1.5, color: textColor),
+      ));
+    }
+
+    return TextSpan(children: spans);
+  }
+}
+

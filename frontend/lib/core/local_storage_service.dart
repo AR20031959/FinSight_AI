@@ -59,21 +59,23 @@ class LocalStorageService {
     };
   }
 
-  /// Save chat messages locally
-  static Future<void> saveChatHistory(List<ChatMessage> messages) async {
+  /// Save chat messages locally per authenticated user
+  static Future<void> saveChatHistory(List<ChatMessage> messages, {String? userEmail}) async {
     final prefs = await SharedPreferences.getInstance();
     final list = messages.map((m) => {
       'text': m.text,
       'isUser': m.isUser,
       'timestamp': m.timestamp.toIso8601String(),
     }).toList();
-    await prefs.setString(_keyChatHistory, jsonEncode(list));
+    final key = userEmail != null && userEmail.isNotEmpty ? '${_keyChatHistory}_$userEmail' : _keyChatHistory;
+    await prefs.setString(key, jsonEncode(list));
   }
 
-  /// Load chat messages from local device storage
-  static Future<List<ChatMessage>?> loadChatHistory() async {
+  /// Load chat messages from local device storage per authenticated user
+  static Future<List<ChatMessage>?> loadChatHistory({String? userEmail}) async {
     final prefs = await SharedPreferences.getInstance();
-    final jsonStr = prefs.getString(_keyChatHistory);
+    final key = userEmail != null && userEmail.isNotEmpty ? '${_keyChatHistory}_$userEmail' : _keyChatHistory;
+    final jsonStr = prefs.getString(key);
     if (jsonStr == null || jsonStr.isEmpty) return null;
     try {
       final List decoded = jsonDecode(jsonStr);

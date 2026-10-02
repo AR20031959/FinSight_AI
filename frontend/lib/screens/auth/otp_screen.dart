@@ -25,7 +25,7 @@ class OTPScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text("Enter Verification Code", textAlign: TextAlign.center, style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text("We have sent a 4-digit security code to demo@finsight.ai", textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondaryLight)),
+                  Text("We have sent a 4-digit security code to your registered email address.", textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondaryLight)),
                   const SizedBox(height: 28),
                   CustomCard(
                     child: Column(
@@ -52,13 +52,18 @@ class OTPScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton(
-                          onPressed: () => context.go('/dashboard'),
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Verification successful! Please sign in with your credentials.")),
+                            );
+                            context.go('/login');
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: Text("Verify & Access Dashboard", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
+                          child: Text("Verify & Sign In", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
                         ),
                       ],
                     ),

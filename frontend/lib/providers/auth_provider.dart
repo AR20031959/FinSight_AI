@@ -11,9 +11,9 @@ class AuthState {
   final String? error;
 
   AuthState({
-    this.isAuthenticated = true,
-    this.email = "demo@finsight.ai",
-    this.fullName = "Alex Morgan",
+    this.isAuthenticated = false,
+    this.email,
+    this.fullName,
     this.role = "user",
     this.isLoading = false,
     this.error,
@@ -39,22 +39,34 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(AuthState()) {
+  AuthNotifier() : super(AuthState(isLoading: true)) {
     _loadStoredSession();
   }
 
   Future<void> _loadStoredSession() async {
     final token = await LocalStorageService.loadAuthToken();
-    if (token != null) {
+    if (token != null && token.isNotEmpty) {
       ApiClient.setAuthToken(token);
+      final res = await ApiClient.get('/auth/me');
+      if (res != null && res is Map && res['email'] != null && res['email'] != "demo@finsight.ai") {
+        final email = res['email'];
+        final name = res['full_name'] ?? "User";
+        final role = res['role'] ?? "user";
+        await LocalStorageService.saveUserProfile(email: email, fullName: name);
+        state = state.copyWith(
+          isAuthenticated: true,
+          email: email,
+          fullName: name,
+          role: role,
+          isLoading: false,
+        );
+        return;
+      }
     }
-    final profile = await LocalStorageService.loadUserProfile();
-    if (profile['email'] != null || profile['fullName'] != null) {
-      state = state.copyWith(
-        email: profile['email'] ?? state.email,
-        fullName: profile['fullName'] ?? state.fullName,
-      );
-    }
+    // Invalidate invalid/expired or demo session
+    ApiClient.setAuthToken('');
+    await LocalStorageService.clearAllUserData();
+    state = AuthState(isAuthenticated: false, isLoading: false);
   }
 
   Future<bool> login(String email, String password, {String role = "user"}) async {
@@ -71,7 +83,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await LocalStorageService.saveAuthToken(token);
       final user = res['user'];
       final String finalEmail = user['email'] ?? email;
-      final String finalName = user['full_name'] ?? "Alex Morgan";
+      final String finalName = user['full_name'] ?? "User";
       final String finalRole = user['role'] ?? role;
 
       await LocalStorageService.saveUserProfile(email: finalEmail, fullName: finalName);
@@ -85,9 +97,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return true;
     } else {
-      final String errMsg = (res != null && res['error'] != null)
-          ? res['error']
-          : "Your account is not registered for this role.";
+      final String errMsg = (res != null && res['detail'] != null)
+          ? res['detail'].toString()
+          : ((res != null && res['error'] != null) ? res['error'].toString() : "Your account is not registered for this role.");
       state = state.copyWith(
         isLoading: false,
         isAuthenticated: false,
@@ -95,6 +107,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return false;
     }
+
   }
 
   Future<bool> register(String email, String fullName, String password, {String role = "user"}) async {
@@ -127,27 +140,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       isLoading: false,
     );
     return true;
-  }
-
-  Future<void> biometricLogin() async {
-    state = state.copyWith(isLoading: true);
-    final res = await ApiClient.post('/auth/biometric-login', {});
-    String finalRole = "user";
-    if (res != null && res['access_token'] != null) {
-      ApiClient.setAuthToken(res['access_token']);
-      await LocalStorageService.saveAuthToken(res['access_token']);
-      if (res['user'] != null && res['user']['role'] != null) {
-        finalRole = res['user']['role'];
-      }
-    }
-    await LocalStorageService.saveUserProfile(email: "demo@finsight.ai", fullName: "Alex Morgan");
-    state = state.copyWith(
-      isAuthenticated: true,
-      email: "demo@finsight.ai",
-      fullName: "Alex Morgan",
-      role: finalRole,
-      isLoading: false,
-    );
   }
 
   Future<void> logout() async {

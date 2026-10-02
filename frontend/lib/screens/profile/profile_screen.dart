@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants.dart';
-import '../../core/api_client.dart';
-import '../../core/local_storage_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../widgets/custom_card.dart';
@@ -25,20 +23,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _selectedLanguage = "English";
   String _salaryPeriod = "monthly"; // "monthly" or "yearly"
   final _salaryController = TextEditingController();
-  final _baseUrlController = TextEditingController(text: ApiClient.baseUrl);
   bool _isInit = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadBaseUrlSetting();
-  }
-
-  Future<void> _loadBaseUrlSetting() async {
-    final storedUrl = await LocalStorageService.loadBaseUrl();
-    ApiClient.setBaseUrl(storedUrl);
-    _baseUrlController.text = storedUrl;
-  }
 
   @override
   void didChangeDependencies() {
@@ -55,7 +40,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _salaryController.text = currentIncome % 1 == 0 ? currentIncome.toInt().toString() : currentIncome.toStringAsFixed(2);
         }
       } else {
-        _salaryController.text = _salaryPeriod == "yearly" ? "1800000" : "150000";
+        _salaryController.text = "";
       }
       _isInit = true;
     }
@@ -102,58 +87,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  void _showServerUrlDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text("Financial AI Server Endpoint", style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Enter the API server URL for internet AI analytics (e.g. cloud host or local network IP):",
-              style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _baseUrlController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: "http://127.0.0.1:8000/api",
-                labelText: "Base API URL",
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final newUrl = _baseUrlController.text.trim();
-              if (newUrl.isNotEmpty) {
-                ApiClient.setBaseUrl(newUrl);
-                await LocalStorageService.saveBaseUrl(newUrl);
-                setState(() {});
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("AI Endpoint updated to $newUrl")),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text("Save URL", style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -189,8 +122,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(authState.fullName ?? "Alex Morgan", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
-                        Text(authState.email ?? "demo@finsight.ai", style: GoogleFonts.inter(fontSize: 13, color: Colors.grey)),
+                        Text(authState.fullName ?? "User", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(authState.email ?? "", style: GoogleFonts.inter(fontSize: 13, color: Colors.grey)),
                         const SizedBox(height: 4),
                         Chip(
                           avatar: Icon(
@@ -368,16 +301,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Data is securely persisted in device storage!")));
                     },
-                  ),
-                  const Divider(),
-
-                  // Financial AI Internet Endpoint
-                  ListTile(
-                    leading: const Icon(Icons.wifi_rounded, color: AppColors.primary),
-                    title: Text("Financial AI Endpoint", style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                    subtitle: Text(ApiClient.baseUrl, style: GoogleFonts.inter(fontSize: 12, color: AppColors.primary), overflow: TextOverflow.ellipsis),
-                    trailing: const Icon(Icons.edit_rounded, size: 18),
-                    onTap: _showServerUrlDialog,
                   ),
                 ],
               ),

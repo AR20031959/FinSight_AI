@@ -6,35 +6,57 @@ from app.models import Transaction
 def calculate_health_score(db: Session, user_id: int) -> Dict[str, Any]:
     transactions = db.query(Transaction).filter(Transaction.user_id == user_id).all()
 
-    income = sum(t.amount for t in transactions if t.type == "income")
-    if income == 0:
-        income = 150000.0  # default baseline for calculation
+    if not transactions:
+        return {
+            "overall_score": 0.0,
+            "savings_ratio": 0.0,
+            "debt_ratio": 0.0,
+            "investment_ratio": 0.0,
+            "emergency_fund_coverage_months": 0.0,
+            "expense_stability_score": 0.0,
+            "suggestions": ["No financial activity recorded yet. Add income, expenses, or investments to generate a dynamic health report."]
+        }
 
-    expenses = sum(t.amount for t in transactions if t.type == "expense" and t.category not in ["Investments", "EMI"])
+    income = sum(t.amount for t in transactions if t.type.lower() == "income")
+    expenses = sum(t.amount for t in transactions if t.type.lower() == "expense" and t.category != "EMI")
     emi_payments = sum(t.amount for t in transactions if t.category == "EMI")
-    investments = sum(t.amount for t in transactions if t.category == "Investments")
-    savings = income - (expenses + emi_payments + investments)
+    investments = sum(t.amount for t in transactions if t.type.lower() in ("investment", "savings"))
+    
+    net_savings = max(0.0, income - (expenses + emi_payments + investments))
+
+    if income == 0.0:
+        # User recorded expenses/investments but no income yet
+        return {
+            "overall_score": 25.0 if investments > 0 else 10.0,
+            "savings_ratio": 0.0,
+            "debt_ratio": 100.0 if emi_payments > 0 else 0.0,
+            "investment_ratio": 0.0,
+            "emergency_fund_coverage_months": 0.0,
+            "expense_stability_score": 50.0,
+            "suggestions": ["Record your monthly salary or income source to unlock your complete health score analysis."]
+        }
 
     # 1. Savings Ratio (Weight: 25%) - ideal >= 30%
-    savings_ratio = max(0.0, (savings / income) * 100)
-    savings_score = min(100.0, (savings_ratio / 30.0) * 100)
+    savings_ratio = max(0.0, (net_savings / income) * 100.0)
+    savings_score = min(100.0, (savings_ratio / 30.0) * 100.0)
 
     # 2. Debt Ratio (Weight: 25%) - ideal EMI <= 30% of income
-    debt_ratio = (emi_payments / income) * 100
+    debt_ratio = (emi_payments / income) * 100.0
     debt_score = max(0.0, 100.0 - (debt_ratio * 2.0))
 
     # 3. Investment Ratio (Weight: 20%) - ideal >= 20% of income
-    investment_ratio = (investments / income) * 100
-    investment_score = min(100.0, (investment_ratio / 20.0) * 100)
+    investment_ratio = (investments / income) * 100.0
+    investment_score = min(100.0, (investment_ratio / 20.0) * 100.0)
 
     # 4. Emergency Fund Coverage (Weight: 15%) - ideal >= 6 months
     total_essential = max(1.0, expenses + emi_payments)
-    liquid_cash = max(0.0, savings + investments)
+    liquid_cash = max(0.0, net_savings + investments)
     emergency_months = liquid_cash / total_essential
-    emergency_score = min(100.0, (emergency_months / 6.0) * 100)
+    emergency_score = min(100.0, (emergency_months / 6.0) * 100.0)
 
-    # 5. Expense Stability Score (Weight: 15%)
-    expense_stability_score = 88.5
+    # 5. Expense Stability Score (Weight: 15%) - dynamic calculated ratio
+    exp_ratio = (expenses / income) * 100.0
+    expense_stability_score = max(0.0, min(100.0, 100.0 - abs(exp_ratio - 50.0)))
 
     # Overall Composite Score (0–100)
     overall_score = (
@@ -47,20 +69,20 @@ def calculate_health_score(db: Session, user_id: int) -> Dict[str, Any]:
 
     overall_score = round(min(100.0, max(0.0, overall_score)), 1)
 
-    # Smart actionable recommendations
+    # Actionable recommendations generated dynamically
     suggestions = []
     if savings_ratio < 20:
-        suggestions.append("Increase your monthly savings ratio to at least 20% by cutting discretionary dining out.")
+        suggestions.append("Increase your monthly savings ratio to at least 20% by cutting discretionary expenses.")
     if debt_ratio > 35:
-        suggestions.append("Your EMI obligations exceed 35% of monthly income. Consider prepaying high-interest loans.")
+        suggestions.append("Your EMI obligations exceed 35% of monthly income. Consider prepaying high-interest debt.")
     if investment_ratio < 15:
-        suggestions.append("Automate an additional 5% SIP into equity index mutual funds to beat inflation.")
+        suggestions.append("Automate an additional 5% SIP into equity index mutual funds to build long-term wealth.")
     if emergency_months < 6:
         suggestions.append(f"Your emergency fund currently covers {emergency_months:.1f} months. Build up to 6 months of essential expenses.")
     else:
         suggestions.append("Excellent emergency fund buffer maintained! You have over 6 months of liquid runway.")
 
-    suggestions.append("Maintain consistent bill payments to preserve your high expense stability score.")
+    suggestions.append("Maintain consistent bill payments to preserve your high financial health score.")
 
     return {
         "overall_score": overall_score,

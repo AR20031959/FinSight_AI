@@ -12,6 +12,7 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    role: Optional[str] = "user"
 
 class UserResponse(BaseModel):
     id: int
@@ -67,18 +68,29 @@ class TransactionResponse(TransactionCreate):
 
 # Dashboard Summary Schema
 class DashboardSummaryResponse(BaseModel):
+    period: str = "All Months"
+    period_type: str = "monthly"
+    available_years: List[int] = []
     total_balance: float
     monthly_income: float
     monthly_expense: float
     total_investments: float = 0.0
     savings: float
+    savings_rate: float = 0.0
     health_score: float
+    transaction_count: int = 0
     category_breakdown: Dict[str, float]
     investment_breakdown: Dict[str, float] = {}
+    largest_expense: Optional[Dict[str, Any]] = None
+    recurring_expenses: List[Dict[str, Any]] = []
+    total_recurring_amount: float = 0.0
+    month_over_month_changes: Dict[str, float] = {}
     monthly_trend: List[Dict[str, Any]]
+    yearly_trend: List[Dict[str, Any]] = []
     recent_transactions: List[TransactionResponse]
     upcoming_bills: List[Dict[str, Any]]
     ai_insights: List[str]
+
 
 # Statement Analyzer Schemas
 class StatementParseResponse(BaseModel):

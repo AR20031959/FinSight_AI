@@ -9,7 +9,7 @@ class ForgotPasswordScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final emailController = TextEditingController(text: "demo@finsight.ai");
+    final emailController = TextEditingController();
 
     return Scaffold(
       appBar: AppBar(title: const Text("Forgot Password")),

@@ -10,6 +10,7 @@ class FinanceState {
   final String selectedCategoryFilter;
   final String searchQuery;
   final String salaryPeriod; // 'monthly' or 'yearly'
+  final String periodType;   // 'monthly' or 'yearly' for Analytics view
   final int selectedYear;
   final int selectedMonth;
 
@@ -20,6 +21,7 @@ class FinanceState {
     this.selectedCategoryFilter = "All",
     this.searchQuery = "",
     this.salaryPeriod = "monthly",
+    this.periodType = "monthly",
     int? selectedYear,
     int? selectedMonth,
   })  : selectedYear = selectedYear ?? DateTime.now().year,
@@ -32,6 +34,7 @@ class FinanceState {
     String? selectedCategoryFilter,
     String? searchQuery,
     String? salaryPeriod,
+    String? periodType,
     int? selectedYear,
     int? selectedMonth,
   }) {
@@ -42,6 +45,7 @@ class FinanceState {
       selectedCategoryFilter: selectedCategoryFilter ?? this.selectedCategoryFilter,
       searchQuery: searchQuery ?? this.searchQuery,
       salaryPeriod: salaryPeriod ?? this.salaryPeriod,
+      periodType: periodType ?? this.periodType,
       selectedYear: selectedYear ?? this.selectedYear,
       selectedMonth: selectedMonth ?? this.selectedMonth,
     );
@@ -53,18 +57,39 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
     fetchData();
   }
 
-  Future<void> fetchData({int? year, int? month}) async {
+  Future<void> fetchData({
+    String? periodType,
+    int? year,
+    int? month,
+    bool allTime = false,
+  }) async {
+    state = state.copyWith(isLoading: true);
+
+    final pType = periodType ?? state.periodType;
     final y = year ?? state.selectedYear;
     final m = month ?? state.selectedMonth;
-    state = state.copyWith(isLoading: true, selectedYear: y, selectedMonth: m);
 
-    final Map<String, String> queryParams = {
-      'year': '$y',
-      'month': '$m',
-    };
+    state = state.copyWith(
+      periodType: pType,
+      selectedYear: y,
+      selectedMonth: m,
+    );
 
-    final summaryRes = await ApiClient.get('/transactions/summary', queryParams: queryParams);
-    final txsRes = await ApiClient.get('/transactions/', queryParams: queryParams);
+    Map<String, String> summaryQueryParams = {'period_type': pType};
+    Map<String, String> txsQueryParams = {};
+
+    if (!allTime) {
+      summaryQueryParams['year'] = '$y';
+      txsQueryParams['year'] = '$y';
+
+      if (pType == 'monthly' && month != null) {
+        summaryQueryParams['month'] = '$m';
+        txsQueryParams['month'] = '$m';
+      }
+    }
+
+    final summaryRes = await ApiClient.get('/transactions/summary', queryParams: summaryQueryParams);
+    final txsRes = await ApiClient.get('/transactions/', queryParams: txsQueryParams);
 
     List<TransactionModel> txs = [];
     if (txsRes != null && txsRes is List) {
@@ -82,9 +107,18 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
     _updateStateWithTransactions(txs);
   }
 
-  Future<void> changeMonth(int year, int month) async {
-    await fetchData(year: year, month: month);
+  Future<void> setPeriodType(String periodType) async {
+    await fetchData(periodType: periodType);
   }
+
+  Future<void> changeMonth(int year, int month) async {
+    await fetchData(periodType: 'monthly', year: year, month: month);
+  }
+
+  Future<void> selectYear(int year) async {
+    await fetchData(year: year);
+  }
+
 
   void resetState() {
     state = FinanceState();

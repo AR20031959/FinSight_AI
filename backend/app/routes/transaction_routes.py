@@ -81,11 +81,13 @@ def remove_tx(
 
 @router.get("/summary", response_model=DashboardSummaryResponse)
 def get_summary(
+    period_type: Optional[str] = Query("monthly"),
     year: Optional[int] = Query(None),
     month: Optional[int] = Query(None),
     db: Session = Depends(get_db), 
     current_user: User = Depends(get_current_user)
 ):
     from app.services.finance_engine import get_monthly_financial_summary
-    return get_monthly_financial_summary(db, current_user.id, year=year, month=month)
+    return get_monthly_financial_summary(db, current_user.id, year=year, month=month, period_type=period_type)
+
 

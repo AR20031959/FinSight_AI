@@ -32,14 +32,19 @@ class BiometricScreen extends ConsumerWidget {
               Text("Touch fingerprint sensor or face scanner to verify identity", textAlign: TextAlign.center, style: GoogleFonts.inter(color: AppColors.textSecondaryLight)),
               const SizedBox(height: 36),
               ElevatedButton.icon(
-                onPressed: () async {
-                  await ref.read(authProvider.notifier).biometricLogin();
-                  if (context.mounted) {
-                    context.go('/dashboard');
+                onPressed: () {
+                  final auth = ref.read(authProvider);
+                  if (auth.isAuthenticated) {
+                    context.go(auth.role == "enterprise" ? '/enterprise/dashboard' : '/dashboard');
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Biometric access requires a registered session. Please sign in.")),
+                    );
+                    context.go('/login');
                   }
                 },
                 icon: const Icon(Icons.lock_open_rounded, color: Colors.white),
-                label: Text("Authenticate Now", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
+                label: Text("Verify Session", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),

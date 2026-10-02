@@ -2,6 +2,8 @@
 from fastapi import FastAPI
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
+from sqlalchemy import text
 from app.config import settings
 from app.database import engine, Base
 from app.routes import (
@@ -19,6 +21,14 @@ from app.routes import (
 
 # Initialize Database tables
 Base.metadata.create_all(bind=engine)
+
+# Auto-migrate SQLite schema for missing columns if needed
+with engine.connect() as conn:
+    try:
+        conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'user'"))
+        conn.commit()
+    except Exception:
+        pass
 
 app = FastAPI(
     title=settings.APP_NAME,
