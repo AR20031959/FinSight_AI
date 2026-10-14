@@ -75,3 +75,13 @@ cd frontend
 flutter build apk --release
 ```
 Output: `build/app/outputs/flutter-apk/app-release.apk`
+
+
+or 
+
+Option 3 — Run using one command
+Open PowerShell and execute:
+
+cd D:\FINSIGHT_AI
+.\run_all.bat
+
