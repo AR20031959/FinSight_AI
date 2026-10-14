@@ -17,7 +17,7 @@ FinSight AI is a cross-platform Financial Decision Intelligence Application buil
 7. **Module 7 – Cash Flow Forecast**: Predictive machine learning engine for 1m, 3m, 6m, and 12m forecasts with 95% confidence bounds and Realistic, Pessimistic, and Optimistic scenario simulations.
 8. **Module 8 – Financial Health Score**: 0–100 radial score gauge evaluating Savings Ratio, Debt Ratio, Investment Ratio, Emergency Reserve Runway, and Expense Stability.
 9. **Module 9 – Reports**: PDF & Excel document generator for executive summaries and detailed transaction ledgers.
-10. **Module 10 – Smart Voice Assistant**: Speech-to-Text command recognition and voice audio response synthesis via Flutter TTS.
+
 
 ---
 
