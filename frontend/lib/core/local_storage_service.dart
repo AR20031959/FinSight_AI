@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/transaction_model.dart';
 import '../providers/ai_provider.dart';
+import 'api_client.dart';
 
 class LocalStorageService {
   static const String _keyTransactions = 'finsight_transactions';
@@ -98,7 +99,7 @@ class LocalStorageService {
   /// Load base API URL with fallback
   static Future<String> loadBaseUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyBaseUrl) ?? "http://127.0.0.1:8000/api";
+    return prefs.getString(_keyBaseUrl) ?? ApiClient.defaultBaseUrl;
   }
 
   /// Clear all user-specific data from local device storage on logout

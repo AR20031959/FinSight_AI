@@ -39,8 +39,9 @@ class EnterpriseMember(Base):
     id = Column(Integer, primary_key=True, index=True)
     enterprise_id = Column(Integer, ForeignKey("enterprises.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    member_role = Column(String, default="member")  # 'admin', 'manager', 'member'
+    member_role = Column(String, default="member")  # 'admin', 'manager', 'member', 'client'
     status = Column(String, default="active")  # 'active', 'pending', 'suspended'
+    client_passcode = Column(String, nullable=True)
     joined_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     enterprise = relationship("Enterprise", back_populates="members")

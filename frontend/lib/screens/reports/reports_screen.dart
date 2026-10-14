@@ -223,7 +223,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   const SizedBox(height: 12),
                   Text("Executive PDF Report", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
-                  Text("Includes executive summary metrics, financial health score assessment, and formatted activity ledger.", textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondaryLight)),
+                  Text("Includes executive summary metrics, multi-pillar financial radar (spider chart), visual analytics charts, and formatted activity ledger.", textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondaryLight)),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     onPressed: _isDownloadingPdf ? null : () => _downloadReport('pdf'),
@@ -296,6 +296,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 80),
           ],
         ),
       ),

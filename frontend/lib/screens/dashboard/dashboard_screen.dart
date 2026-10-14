@@ -10,6 +10,7 @@ import '../../widgets/custom_card.dart';
 import '../../widgets/health_score_gauge.dart';
 import '../../widgets/transaction_tile.dart';
 import '../../widgets/pdf_report_modal.dart';
+import '../../widgets/financial_spider_chart.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -169,7 +170,7 @@ class DashboardScreen extends ConsumerWidget {
                   Text("Interactive Visual Analytics", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 14),
 
-                  if (isDesktop)
+                  if (isDesktop) ...[
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -179,19 +180,30 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          flex: 6,
-                          child: Column(
-                            children: [
-                              _buildBarChartCard(summary),
-                              const SizedBox(height: 16),
-                              _buildLineChartCard(summary),
-                            ],
-                          ),
+                          flex: 5,
+                          child: FinancialSpiderChart(summary: summary),
                         ),
                       ],
-                    )
-                  else ...[
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 5,
+                          child: _buildBarChartCard(summary),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 5,
+                          child: _buildLineChartCard(summary),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
                     _buildCategoryPieChartCard(summary),
+                    const SizedBox(height: 16),
+                    FinancialSpiderChart(summary: summary),
                     const SizedBox(height: 16),
                     _buildBarChartCard(summary),
                     const SizedBox(height: 16),

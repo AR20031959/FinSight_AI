@@ -62,6 +62,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
         return;
       }
+
+      // If backend is still starting or unreachable, preserve user credentials instead of clearing
+      if (res is Map && (res['connectionError'] == true || (res['error'] != null && res['error'].toString().contains('Unable to connect')))) {
+        final profile = await LocalStorageService.loadUserProfile();
+        if (profile['email'] != null && profile['email']!.isNotEmpty) {
+          state = state.copyWith(
+            isAuthenticated: true,
+            email: profile['email'],
+            fullName: profile['fullName'] ?? "User",
+            role: "user",
+            isLoading: false,
+          );
+          return;
+        }
+      }
     }
     // Invalidate invalid/expired or demo session
     ApiClient.setAuthToken('');
@@ -94,12 +109,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
         fullName: finalName,
         role: finalRole,
         isLoading: false,
+        error: null,
       );
       return true;
     } else {
-      final String errMsg = (res != null && res['detail'] != null)
-          ? res['detail'].toString()
-          : ((res != null && res['error'] != null) ? res['error'].toString() : "Your account is not registered for this role.");
+      final String errMsg = (res != null && res['error'] != null)
+          ? res['error'].toString()
+          : ((res != null && res['detail'] != null)
+              ? res['detail'].toString()
+              : "Login failed. Please verify your credentials and connection.");
       state = state.copyWith(
         isLoading: false,
         isAuthenticated: false,
@@ -107,7 +125,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return false;
     }
-
   }
 
   Future<bool> register(String email, String fullName, String password, {String role = "user"}) async {
@@ -119,27 +136,38 @@ class AuthNotifier extends StateNotifier<AuthState> {
       'role': role,
     });
 
-    String finalRole = role;
-
     if (res != null && res['access_token'] != null) {
       final token = res['access_token'];
       ApiClient.setAuthToken(token);
       await LocalStorageService.saveAuthToken(token);
+      String finalRole = role;
       if (res['user'] != null && res['user']['role'] != null) {
         finalRole = res['user']['role'];
       }
+      await LocalStorageService.saveUserProfile(email: email, fullName: fullName);
+
+      state = state.copyWith(
+        isAuthenticated: true,
+        email: email,
+        fullName: fullName,
+        role: finalRole,
+        isLoading: false,
+        error: null,
+      );
+      return true;
+    } else {
+      final String errMsg = (res != null && res['error'] != null)
+          ? res['error'].toString()
+          : ((res != null && res['detail'] != null)
+              ? res['detail'].toString()
+              : "Registration failed. Please check your inputs and try again.");
+      state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: false,
+        error: errMsg,
+      );
+      return false;
     }
-
-    await LocalStorageService.saveUserProfile(email: email, fullName: fullName);
-
-    state = state.copyWith(
-      isAuthenticated: true,
-      email: email,
-      fullName: fullName,
-      role: finalRole,
-      isLoading: false,
-    );
-    return true;
   }
 
   Future<void> logout() async {

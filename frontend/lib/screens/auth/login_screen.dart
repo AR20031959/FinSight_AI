@@ -46,7 +46,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       } else {
         final err = ref.read(authProvider).error;
         setState(() {
-          _errorMessage = err ?? "Your account is not registered for this role.";
+          _errorMessage = err ?? "Login failed. Please check your credentials and server status.";
         });
       }
     }

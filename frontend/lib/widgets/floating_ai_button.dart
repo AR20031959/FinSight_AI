@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class FloatingAIButton extends StatelessWidget {
-  const FloatingAIButton({super.key});
+  final String heroTag;
+  const FloatingAIButton({super.key, this.heroTag = 'main_floating_ai_btn'});
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +17,7 @@ class FloatingAIButton extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2563EB).withOpacity(0.4),
+            color: const Color(0xFF2563EB).withValues(alpha: 0.4),
             blurRadius: 16,
             spreadRadius: 2,
             offset: const Offset(0, 6),
@@ -24,10 +25,12 @@ class FloatingAIButton extends StatelessWidget {
         ],
       ),
       child: FloatingActionButton(
+        heroTag: heroTag,
         onPressed: () => context.push('/ai-assistant'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         highlightElevation: 0,
+        tooltip: "AI Financial Advisor",
         child: const Icon(
           Icons.psychology_rounded,
           color: Colors.white,

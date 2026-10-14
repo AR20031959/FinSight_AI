@@ -31,18 +31,33 @@ FinSight AI is a cross-platform Financial Decision Intelligence Application buil
 
 ## Quick Start Guide
 
-### 1. Running the FastAPI Backend
+### Option A: 1-Click Simultaneous Full Stack Run (Recommended)
+You can launch **both** the FastAPI Backend and Flutter Frontend simultaneously with a single action:
+
+1. **In VS Code / Antigravity IDE**:
+   - Open the **Run & Debug** panel (Ctrl+Shift+D).
+   - Select **🚀 FinSight Full Stack (Backend + Frontend)** and press **F5**.
+   - *Both FastAPI and Flutter will launch together automatically!*
+
+2. **Via One-Click Script (Windows)**:
+   - Double-click `run_all.bat` (or execute `.\run_all.ps1` in PowerShell).
+   - The script ensures port 8000 is running FastAPI, auto-forwards Android ADB port 8000 if a mobile device is attached, and boots Flutter.
+
+---
+
+### Option B: Running Manually
+
+1. **FastAPI Backend**:
 ```bash
 cd backend
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-API Documentation will be available live at `http://127.0.0.1:8000/docs`.
+API Documentation live at `http://127.0.0.1:8000/docs`.
 
-### 2. Running the Flutter App (Windows Desktop)
+2. **Flutter App**:
 ```bash
 cd frontend
-flutter config --enable-windows-desktop
-flutter run -d windows
+flutter run
 ```
 
 ### 3. Building for Release

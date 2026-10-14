@@ -160,10 +160,12 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
     final selectedIndex = _calculateSelectedIndex(context);
     final authState = ref.watch(authProvider);
     final isEnterprise = authState.role.toLowerCase() == "enterprise";
+    final String location = GoRouterState.of(context).uri.toString();
+    final bool isAnalyticsRoute = location.startsWith('/expense');
 
     return Scaffold(
       body: widget.child,
-      floatingActionButton: const FloatingAIButton(),
+      floatingActionButton: isAnalyticsRoute ? null : const FloatingAIButton(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       drawer: Drawer(
         child: ListView(

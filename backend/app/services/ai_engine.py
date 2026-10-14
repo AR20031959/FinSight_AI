@@ -62,42 +62,48 @@ def ask_gemini_financial_advisor(prompt: str, user_context: Dict[str, Any]) -> D
     trend = user_context.get("monthly_trend", [])
     insights = user_context.get("ai_insights", [])
 
-    # Perform live web search for market/rates/tax queries
+    # Perform live web search for market/rates/tax/macro queries
     web_context = ""
-    if any(k in prompt.lower() for k in ["market", "nifty", "rate", "inflation", "tax", "sip", "fd", "gold", "news", "trend", "global", "economy", "fed", "rbi"]):
-        web_snippets = _search_live_web(prompt)
+    market_keywords = [
+        "market", "nifty", "sensex", "stock", "equity", "rate", "interest", 
+        "inflation", "tax", "sip", "fd", "gold", "news", "trend", "global", 
+        "economy", "fed", "rbi", "recession", "bank", "fund", "yield", "bond", 
+        "real estate", "crypto", "compare", "strategy", "idea", "suggestion", "insight"
+    ]
+    if any(k in prompt.lower() for k in market_keywords):
+        web_snippets = _search_live_web(f"India financial market trends inflation RBI repo rate {prompt}")
         if web_snippets:
-            web_context = f"\nLive Web Search Context for '{prompt}':\n{web_snippets}\n"
+            web_context = f"\nLive Real-Time Financial Market & Macroeconomic Context:\n{web_snippets}\n"
     
     context_str = (
         f"User Selected Period: {period}\n"
-        f"Exact Computed Application Financial Data (SINGLE SOURCE OF TRUTH):\n"
+        f"EXACT USER DATABASE FINANCIAL RECORDS (DYNAMIC & AUTHORITATIVE SOURCE OF TRUTH):\n"
         f"- Total Income: ₹{income:,.2f}\n"
         f"- Total Expenses: ₹{expense:,.2f}\n"
         f"- Total Investments: ₹{investments:,.2f}\n"
         f"- Net Savings/Surplus: ₹{savings:,.2f}\n"
         f"- Savings Rate: {savings_rate}%\n"
         f"- Financial Health Score: {health_score}/100\n"
-        f"- Transaction Count: {tx_count}\n"
+        f"- Total Transaction Count: {tx_count}\n"
         f"- Category Spending Breakdown: {cat_breakdown}\n"
-        f"- Investment Allocation: {inv_breakdown}\n"
+        f"- Investment Asset Allocation: {inv_breakdown}\n"
         f"- Largest Single Expense: {largest_expense or 'None recorded'}\n"
-        f"- Recurring Expenses: {recurring}\n"
-        f"- Month-over-Month Changes: {mom}\n"
-        f"- Recent Monthly Trend: {trend}\n"
-        f"- App Analytics Insights: {insights}\n"
+        f"- Recurring Subscriptions / Bills: {recurring}\n"
+        f"- Month-over-Month Growth: {mom}\n"
+        f"- Historical Trend Timeline: {trend}\n"
+        f"- Calculated Financial Insights: {insights}\n"
         f"{web_context}"
     )
 
     full_prompt = (
-        f"You are FinSight AI, a certified senior financial advisor and global macro strategist.\n\n"
-        f"STRICT DATA INTEGRITY & ANTI-HALLUCINATION RULES:\n"
-        f"1. You MUST ONLY use the actual financial numbers provided in the user context above.\n"
-        f"2. If data for a requested metric, timeframe, category, or investment return is NOT present in the context, you MUST explicitly state that the information is UNAVAILABLE. NEVER invent, fabricate, or guess financial figures, interest rates, portfolio values, transaction amounts, or percentages.\n"
-        f"3. Always reference the selected period ('{period}') in your response.\n"
-        f"4. Provide guidance comparing the user's current financial profile (savings rate, expenses, investment ratio) with global market conditions (inflation trends, central bank rate policies, equity benchmark performance) and offer clear, actionable recommendations.\n\n"
+        f"You are FinSight AI, a senior financial advisor, wealth strategist, and macro economist.\n\n"
+        f"CORE DIRECTIVES:\n"
+        f"1. DYNAMIC USER DATA ONLY: You MUST evaluate the user's actual live database financial records provided in the context above. Do NOT use static or fabricated dummy figures.\n"
+        f"2. ZERO DUMMY/MOCK DATA: If transaction data or specific metrics are 0 or empty for the requested period, state clearly that no records exist for that period and prompt the user to log their transactions.\n"
+        f"3. MARKET TREND COMPARISON: Compare the user's live financial data (e.g. savings rate of {savings_rate}%, expenses ₹{expense:,.2f}, active investments ₹{investments:,.2f}) against current macroeconomic conditions (current inflation rates, benchmark equity index performance, interest rate trends, and yield curves).\n"
+        f"4. ACTIONABLE INSIGHTS & IDEAS: Provide concrete, step-by-step suggestions, portfolio allocation ideas, expense reduction strategies, and clear answers tailored precisely to the user's situation.\n\n"
         f"{context_str}\n"
-        f"User Query: '{prompt}'"
+        f"User Question / Request: '{prompt}'"
     )
 
     reply = None

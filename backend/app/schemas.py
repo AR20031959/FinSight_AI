@@ -38,6 +38,12 @@ class EnterpriseDashboardResponse(BaseModel):
     usage_statistics: Dict[str, Any]
     privacy_compliance_notice: str
 
+class EnterpriseClientCreate(BaseModel):
+    full_name: str
+    email: EmailStr
+    password: str
+    notes: Optional[str] = None
+
 # Transaction Schemas
 class TransactionCreate(BaseModel):
     title: str

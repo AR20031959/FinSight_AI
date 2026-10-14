@@ -33,11 +33,26 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           _passwordController.text.trim(),
           role: _selectedRole,
         );
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Account created as ${_selectedRole.toUpperCase()}! Please sign in.")),
-      );
-      context.go('/login');
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Account created successfully as ${_selectedRole.toUpperCase()}!")),
+        );
+        final currentRole = ref.read(authProvider).role;
+        if (currentRole.toLowerCase() == "enterprise") {
+          context.go('/enterprise/dashboard');
+        } else {
+          context.go('/dashboard');
+        }
+      } else {
+        final err = ref.read(authProvider).error ?? "Registration failed.";
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(err),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 

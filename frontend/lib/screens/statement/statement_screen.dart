@@ -257,6 +257,7 @@ class _StatementScreenState extends ConsumerState<StatementScreen> {
                     ),
                   )),
             ],
+            const SizedBox(height: 80),
           ],
         ),
       ),

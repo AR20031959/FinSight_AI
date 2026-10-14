@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/backend_launcher.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,6 +14,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  String _statusMessage = "Starting FinSight AI...";
 
   @override
   void initState() {
@@ -31,12 +33,27 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
 
     _controller.forward();
+    _initializeAndNavigate();
+  }
 
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        context.go('/login');
-      }
-    });
+  Future<void> _initializeAndNavigate() async {
+    // Brief delay for splash branding animation
+    await Future.delayed(const Duration(milliseconds: 1000));
+
+    // Ensure backend is reachable or auto-launched
+    await BackendLauncher.ensureRunning(
+      onStatusUpdate: (msg) {
+        if (mounted) {
+          setState(() {
+            _statusMessage = msg;
+          });
+        }
+      },
+    );
+
+    if (mounted) {
+      context.go('/login');
+    }
   }
 
   @override
@@ -111,6 +128,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
                       valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF06B6D4)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _statusMessage,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],

@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import '../../models/transaction_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/finance_provider.dart';
 import '../../widgets/custom_card.dart';
 import '../../widgets/transaction_tile.dart';
+import '../../widgets/floating_ai_button.dart';
 
 class ExpenseScreen extends ConsumerStatefulWidget {
   const ExpenseScreen({super.key});
@@ -19,6 +23,69 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   final _searchController = TextEditingController();
   String _selectedCategory = "All";
   String _selectedMonthKey = "All"; // "All" or "yyyy-MM"
+
+  // Enterprise Client Selection Dropdown state
+  List<dynamic> _enterpriseClients = [];
+  int? _selectedClientId;
+  bool _isLoadingClients = false;
+  List<TransactionModel> _clientTransactions = [];
+  bool _isLoadingClientTxs = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndFetchEnterpriseClients();
+    });
+  }
+
+  Future<void> _checkAndFetchEnterpriseClients() async {
+    final authState = ref.read(authProvider);
+    if (authState.role == 'enterprise') {
+      setState(() => _isLoadingClients = true);
+      try {
+        final res = await ApiClient.get('/enterprise/clients');
+        if (res is List && mounted) {
+          setState(() {
+            _enterpriseClients = res;
+            _isLoadingClients = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isLoadingClients = false);
+      }
+    }
+  }
+
+  Future<void> _onClientSelected(int? clientId) async {
+    setState(() {
+      _selectedClientId = clientId;
+    });
+
+    if (clientId == null) {
+      setState(() {
+        _clientTransactions = [];
+        _isLoadingClientTxs = false;
+      });
+      ref.read(financeProvider.notifier).fetchData();
+      return;
+    }
+
+    setState(() => _isLoadingClientTxs = true);
+    try {
+      final res = await ApiClient.get('/enterprise/clients/$clientId/dashboard');
+      if (res is Map && mounted) {
+        final rawTxs = res['recent_transactions'] as List? ?? [];
+        final txModels = rawTxs.map((t) => TransactionModel.fromJson(t as Map<String, dynamic>)).toList();
+        setState(() {
+          _clientTransactions = txModels;
+          _isLoadingClientTxs = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingClientTxs = false);
+    }
+  }
 
   List<Map<String, String>> get _monthOptions {
     final List<Map<String, String>> options = [
@@ -35,21 +102,43 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   }
 
   void _showAddTransactionModal(BuildContext context, {TransactionModel? initialTx}) {
+    String? clientName;
+    if (_selectedClientId != null) {
+      final match = _enterpriseClients.firstWhere(
+        (c) => c['client_id'] == _selectedClientId,
+        orElse: () => <String, dynamic>{},
+      );
+      clientName = match['full_name'];
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AddTransactionModal(initialTx: initialTx),
+      builder: (context) => AddTransactionModal(
+        initialTx: initialTx,
+        selectedClientId: _selectedClientId,
+        selectedClientName: clientName,
+        onTransactionSaved: () {
+          if (_selectedClientId != null) {
+            _onClientSelected(_selectedClientId);
+          }
+        },
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
     final financeState = ref.watch(financeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Select base dataset: selected client transactions vs practice/user financeState
+    List<TransactionModel> baseDataset = _selectedClientId != null ? _clientTransactions : financeState.transactions;
+
     // 1. Filter by selected Month strictly from actual transactions
-    var monthFilteredList = financeState.transactions;
+    var monthFilteredList = baseDataset;
     if (_selectedMonthKey != "All") {
       monthFilteredList = monthFilteredList.where((t) {
         return t.date.startsWith(_selectedMonthKey);
@@ -102,17 +191,83 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddTransactionModal(context),
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: Text("Add Activity", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'expense_add_activity_fab',
+            onPressed: () => _showAddTransactionModal(context),
+            backgroundColor: AppColors.primary,
+            icon: const Icon(Icons.add_rounded, color: Colors.white),
+            label: Text("Add Activity", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
+          ),
+          const SizedBox(height: 12),
+          const FloatingAIButton(heroTag: 'expense_ai_assistant_fab'),
+        ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Enterprise Client Account Dropdown Tile Selector (for Enterprise Accounts)
+            if (authState.role == 'enterprise') ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.35), width: 1.5),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int?>(
+                    value: _selectedClientId,
+                    isExpanded: true,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary, size: 28),
+                    dropdownColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    hint: Text("Select Client Account...", style: GoogleFonts.inter(fontSize: 14)),
+                    items: [
+                      DropdownMenuItem<int?>(
+                        value: null,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.apartment_rounded, color: AppColors.primary, size: 20),
+                            const SizedBox(width: 10),
+                            Text("🏢 Enterprise Practice (All Clients Summary)", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      ..._enterpriseClients.map((c) {
+                        final cId = c['client_id'] as int;
+                        final cName = c['full_name'] ?? 'Client';
+                        final cEmail = c['email'] ?? '';
+                        return DropdownMenuItem<int?>(
+                          value: cId,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.person_pin_rounded, color: AppColors.secondary, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  "👤 $cName  ($cEmail)",
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                    onChanged: (val) => _onClientSelected(val),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
             // 1. Period Mode Toggle (Monthly vs Yearly)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -400,39 +555,46 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
             const SizedBox(height: 14),
 
             // Transactions list
-            Expanded(
-              child: displayList.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.account_balance_wallet_outlined, size: 48, color: Colors.grey.withOpacity(0.4)),
-                          const SizedBox(height: 12),
-                          Text(
-                            "No financial entries found",
-                            style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black87),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Tap 'Add Activity' to record transactions.",
-                            style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+            if (displayList.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 36.0),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.account_balance_wallet_outlined, size: 48, color: Colors.grey.withOpacity(0.4)),
+                      const SizedBox(height: 12),
+                      Text(
+                        "No financial entries found",
+                        style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black87),
                       ),
-                    )
-                  : ListView.builder(
-                      itemCount: displayList.length,
-                      itemBuilder: (context, index) {
-                        final tx = displayList[index];
-                        return TransactionTile(
-                          tx: tx,
-                          onEdit: () => _showAddTransactionModal(context, initialTx: tx),
-                          onDelete: () => ref.read(financeProvider.notifier).deleteTransaction(tx.id),
-                        );
-                      },
-                    ),
-            ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Tap 'Add Activity' to record transactions.",
+                        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: displayList.length,
+                itemBuilder: (context, index) {
+                  final tx = displayList[index];
+                  return TransactionTile(
+                    tx: tx,
+                    onEdit: () => _showAddTransactionModal(context, initialTx: tx),
+                    onDelete: () => ref.read(financeProvider.notifier).deleteTransaction(tx.id),
+                  );
+                },
+              ),
+
+            // Bottom Spacing to ensure text/buttons are never overlapped by Floating Action Buttons or Bottom Navigation Bar
+            const SizedBox(height: 90),
           ],
         ),
       ),
@@ -459,7 +621,17 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
 
 class AddTransactionModal extends ConsumerStatefulWidget {
   final TransactionModel? initialTx;
-  const AddTransactionModal({super.key, this.initialTx});
+  final int? selectedClientId;
+  final String? selectedClientName;
+  final VoidCallback? onTransactionSaved;
+
+  const AddTransactionModal({
+    super.key,
+    this.initialTx,
+    this.selectedClientId,
+    this.selectedClientName,
+    this.onTransactionSaved,
+  });
 
   @override
   ConsumerState<AddTransactionModal> createState() => _AddTransactionModalState();
@@ -520,7 +692,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (_titleController.text.isEmpty || _amountController.text.isEmpty) return;
     double rawAmt = double.tryParse(_amountController.text) ?? 0.0;
     
@@ -528,6 +700,38 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
     double finalAmt = rawAmt;
     if ((_type == "income" || _category == "Salary") && _salaryPeriod == "yearly") {
       finalAmt = rawAmt / 12.0;
+    }
+
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    // If posting for a specific client account in Enterprise mode
+    if (widget.selectedClientId != null) {
+      final res = await ApiClient.post('/enterprise/clients/${widget.selectedClientId}/transactions', {
+        'title': _titleController.text,
+        'amount': finalAmt,
+        'type': _type,
+        'category': _category,
+        'date': widget.initialTx?.date ?? todayStr,
+        'merchant': _merchantController.text.isNotEmpty ? _merchantController.text : 'Enterprise Advisor Managed',
+        'note': 'Financial activity recorded by Enterprise Advisor',
+        'is_recurring': _isRecurring,
+      });
+
+      if (mounted) {
+        if (widget.onTransactionSaved != null) {
+          widget.onTransactionSaved!();
+        }
+        Navigator.pop(context);
+        if (res != null && res['id'] != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Activity posted to ${widget.selectedClientName ?? 'Client'}'s ledger!"),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      }
+      return;
     }
 
     if (widget.initialTx != null) {
@@ -549,14 +753,14 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
         amount: finalAmt,
         type: _type,
         category: _category,
-        date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        date: todayStr,
         merchant: _merchantController.text.isNotEmpty ? _merchantController.text : null,
         isRecurring: _isRecurring,
       );
       ref.read(financeProvider.notifier).addTransaction(newTx);
     }
     ref.read(financeProvider.notifier).setSalaryPeriod(_salaryPeriod);
-    Navigator.pop(context);
+    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -590,7 +794,31 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
               isEditing ? "Edit Financial Activity" : "Add Financial Activity",
               style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
+
+            if (widget.selectedClientId != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.person_pin_rounded, size: 18, color: AppColors.secondary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Inputting activity for: ${widget.selectedClientName ?? 'Selected Client'}",
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.secondary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Segmented 4-Type Selector
             Wrap(
